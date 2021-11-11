@@ -71,6 +71,11 @@ func (s *StandAloneReader) Close() {
 func (s *StandAloneStorage) Write(ctx *kvrpcpb.Context, batch []storage.Modify) error {
 	// Your Code Here (1).
 	txn := s.db.NewTransaction(true)
+	if txn == nil {
+		return errors.New("cannot start transaction")
+	}
+	defer txn.Discard()
+
 	var err error
 	for _, m := range batch {
 		switch m.Data.(type) {
@@ -89,8 +94,8 @@ func (s *StandAloneStorage) Write(ctx *kvrpcpb.Context, batch []storage.Modify) 
 		}
 	}
 	if err != nil {
-		txn.Discard()
 		return err
 	}
+
 	return txn.Commit()
 }
