@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 )
 
+var ErrCannotStartTransaction = errors.New("cannot start transaction")
+
 // StandAloneStorage is an implementation of `Storage` for a single-node TinyKV instance. It does not
 // communicate with other nodes and all data is stored locally.
 type StandAloneStorage struct {
@@ -43,7 +45,7 @@ func (s *StandAloneStorage) Reader(ctx *kvrpcpb.Context) (storage.StorageReader,
 	// Your Code Here (1).
 	tx := s.db.NewTransaction(false)
 	if tx == nil {
-		return nil, errors.New("cannot start transaction")
+		return nil, ErrCannotStartTransaction
 	}
 	return NewStandAloneReader(tx), nil
 }
@@ -80,24 +82,25 @@ func (s *StandAloneStorage) Write(ctx *kvrpcpb.Context, batch []storage.Modify) 
 	// Your Code Here (1).
 	txn := s.db.NewTransaction(true)
 	if txn == nil {
-		return errors.New("cannot start transaction")
+		return ErrCannotStartTransaction
 	}
 	defer txn.Discard()
 
 	var err error
+BatchLoop:
 	for _, m := range batch {
 		switch m.Data.(type) {
 		case storage.Put:
 			p := m.Data.(storage.Put)
 			err = txn.Set(engine_util.KeyWithCF(p.Cf, p.Key), p.Value)
 			if err != nil {
-				break
+				break BatchLoop
 			}
 		case storage.Delete:
 			d := m.Data.(storage.Delete)
 			err = txn.Delete(engine_util.KeyWithCF(d.Cf, d.Key))
 			if err != nil {
-				break
+				break BatchLoop
 			}
 		}
 	}
