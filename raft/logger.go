@@ -19,19 +19,19 @@ const (
 )
 
 type logger struct {
-	log.Logger
-	level loggerLevel
+	logger *log.Logger
+	level  loggerLevel
 }
 
 func newLogger(id uint64, level loggerLevel) *logger {
 	return &logger{
-		Logger: *log.New(os.Stdout, fmt.Sprintf("id(%d)", id), log.LstdFlags|log.Lmicroseconds),
+		logger: log.New(os.Stdout, fmt.Sprintf("id(%d)", id), log.LstdFlags|log.Lmicroseconds),
 		level:  level,
 	}
 }
 
 func (l *logger) levelf(levelString string, format string, a ...interface{}) {
-	l.Printf("[%s] %s", levelString, format, a)
+	l.logger.Printf(fmt.Sprintf("[%s] %s", levelString, format), a)
 }
 
 func (l *logger) Tracef(format string, a ...interface{}) {
@@ -67,6 +67,10 @@ func (l *logger) Errorf(format string, a ...interface{}) {
 		return
 	}
 	l.levelf("ERROR", format, a)
+}
+
+func (l *logger) Fatalf(format string, a ...interface{}) {
+	l.levelf("FATAL", format, a)
 }
 
 func readLevelFromEnv() loggerLevel {
