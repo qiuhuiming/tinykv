@@ -14,13 +14,16 @@
 
 package raft
 
-import pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
+import (
+	pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
+	"github.com/pkg/errors"
+)
 
 // RaftLog manage the log entries, its struct look like:
 //
-//  snapshot/first.....applied....committed....stabled.....last
-//  --------|------------------------------------------------|
-//                            log entries
+//	snapshot/first.....applied....committed....stabled.....last
+//	--------|------------------------------------------------|
+//	                          log entries
 //
 // for simplify the RaftLog implement should manage all log entries
 // that not truncated
@@ -81,30 +84,93 @@ func (l *RaftLog) allEntries() []pb.Entry {
 	return nil
 }
 
+// entriesBetween returns the entries whose index in [start, end].
+func (l *RaftLog) entriesBetween(start uint64, end uint64) (ents []pb.Entry, err error) {
+	if end < start {
+		err = errors.New("invalid arguments: end < start")
+		return
+	}
+	if start < l.FirstIndex() {
+		err = errors.New("the start log has been compacted")
+	}
+	if end > l.LastIndex() {
+		err = errors.New("end > lastIndex")
+		return
+	}
+
+	firstIndex := l.FirstIndex()
+	start -= firstIndex
+	end -= firstIndex
+
+	ents = make([]pb.Entry, end-start+1)
+	src := l.entries[start : end+1]
+	copy(ents, src)
+	return
+}
+
 // unstableEntries return all the unstable entries
 func (l *RaftLog) unstableEntries() []pb.Entry {
 	// Your Code Here (2A).
-	return nil
+	ents, err := l.entriesBetween(l.stabled+1, l.LastIndex())
+	if err != nil {
+		return nil
+	}
+
+	return ents
 }
 
 // nextEnts returns all the committed but not applied entries
 func (l *RaftLog) nextEnts() (ents []pb.Entry) {
 	// Your Code Here (2A).
-	return nil
+	ents, err := l.entriesBetween(l.applied+1, l.committed)
+	if err != nil {
+		return nil
+	}
+
+	return ents
 }
 
 // LastIndex return the last index of the log entries
 func (l *RaftLog) LastIndex() uint64 {
 	// Your Code Here (2A).
-	// TODO: 2ab
-	return 0
+	if len(l.entries) == 0 {
+		return 0
+	}
+
+	return l.entries[len(l.entries)-1].Index
+}
+
+// FirstIndex returns the first index of the log entries
+func (l *RaftLog) FirstIndex() uint64 {
+	if len(l.entries) == 0 {
+		return 0
+	}
+	return l.entries[0].Index
+}
+
+// maybeEntry returns the entry whose index == `i`
+// return error if `i` is out of range
+func (l *RaftLog) maybeEntry(i uint64) (ent pb.Entry, err error) {
+	firstIndex := l.FirstIndex()
+	i -= firstIndex
+
+	if i < 0 || i >= uint64(len(l.entries)) {
+		err = errors.New("out of range")
+		return
+	}
+
+	ent = l.entries[i]
+	return
 }
 
 // Term return the term of the entry in the given index
 func (l *RaftLog) Term(i uint64) (uint64, error) {
 	// Your Code Here (2A).
-	// TODO: 2ab
-	return 0, nil
+	ent, err := l.maybeEntry(i)
+	if err != nil {
+		return 0, err
+	}
+	return ent.Term, nil
 }
 
 func (l *RaftLog) LastTerm() uint64 {
