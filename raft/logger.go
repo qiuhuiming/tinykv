@@ -23,9 +23,9 @@ type logger struct {
 	level  loggerLevel
 }
 
-func newLogger(id uint64, level loggerLevel) *logger {
+func newLogger(prefix string, level loggerLevel) *logger {
 	return &logger{
-		logger: log.New(os.Stdout, fmt.Sprintf("id(%d)", id), log.LstdFlags|log.Lmicroseconds),
+		logger: log.New(os.Stdout, prefix, log.LstdFlags|log.Lmicroseconds),
 		level:  level,
 	}
 }

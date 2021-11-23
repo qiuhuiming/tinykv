@@ -16,6 +16,7 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 
 	pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
@@ -193,7 +194,7 @@ func newRaft(c *Config) *Raft {
 		electionElapsed:  0,
 		leadTransferee:   0,
 		PendingConfIndex: 0,
-		logger:           newLogger(c.ID, readLevelFromEnv()),
+		logger:           newLogger(fmt.Sprintf("id(%d)", c.ID), readLevelFromEnv()),
 		peers:            peers,
 	}
 	return r
