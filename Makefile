@@ -48,6 +48,10 @@ ci: default
 	@echo "Running Go vet"
 	@go vet ./...
 
+name=2
+p2:
+	$(GOTEST) ./raft -run ${name}
+
 format:
 	@gofmt -s -w `find . -name '*.go' -type f ! -path '*/_tools/*' -print`
 
