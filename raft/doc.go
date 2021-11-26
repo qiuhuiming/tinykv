@@ -79,7 +79,7 @@ make sure that no new entries are persisted while marshalling.
 The easiest way to achieve this is to serialize the messages directly inside
 your main raft loop.
 
-3. Apply Snapshot (if any) and CommittedEntries to the state machine.
+3. Apply Snapshot (if any) and maybeNextEntries to the state machine.
 If any committed Entry has Type EntryType_EntryConfChange, call Node.ApplyConfChange()
 to apply it to the node. The configuration change may be cancelled at this point
 by setting the NodeId field to zero before calling ApplyConfChange
@@ -119,7 +119,7 @@ The total state machine handling loop will look something like this:
       if !raft.IsEmptySnap(rd.Snapshot) {
         processSnapshot(rd.Snapshot)
       }
-      for _, entry := range rd.CommittedEntries {
+      for _, entry := range rd.maybeNextEntries {
         process(entry)
         if entry.Type == eraftpb.EntryType_EntryConfChange {
           var cc eraftpb.ConfChange

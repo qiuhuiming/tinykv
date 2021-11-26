@@ -198,7 +198,7 @@ func newRaft(c *Config) *Raft {
 		electionElapsed:  0,
 		leadTransferee:   0,
 		PendingConfIndex: 0,
-		logger:           newLogger(fmt.Sprintf("id(%d)", c.ID), readLevelFromEnv()),
+		logger:           newLogger(fmt.Sprintf("Raft(%d)", c.ID), readLevelFromEnv()),
 	}
 	return r
 }
@@ -818,4 +818,39 @@ func (r *Raft) newCommitIndex() (newCommitIndex uint64) {
 		}
 	}
 	return
+}
+
+func (r *Raft) Msgs() []pb.Message {
+	return r.msgs
+}
+
+func (r *Raft) SoftState() SoftState {
+	return SoftState{
+		Lead:      r.Lead,
+		RaftState: r.State,
+	}
+}
+
+func (r *Raft) HardState() pb.HardState {
+	return pb.HardState{
+		Term:   r.Term,
+		Vote:   r.Vote,
+		Commit: r.RaftLog.committed,
+	}
+}
+
+func (r *Raft) advance(rd Ready) {
+	if na := rd.newApplied(); na > 0 {
+		r.RaftLog.appliedTo(na)
+	}
+
+	if n := len(rd.Entries); n > 0 {
+		e := rd.Entries[n-1]
+		r.RaftLog.stableTo(e.Index, e.Term)
+	}
+
+}
+
+func (r *Raft) clearMsgs() {
+	r.msgs = make([]pb.Message, 0)
 }

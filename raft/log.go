@@ -308,13 +308,13 @@ func (l *RaftLog) truncateAndAppend(entries []pb.Entry) {
 	case entriesFirstIndex <= currentFirstIndex:
 		l.logger.Infof("replace the unstable entries from index %d", entriesFirstIndex)
 		l.entries = entries
-		l.persist(0, entriesFirstIndex-1)
+		l.stableTo(entriesFirstIndex-1, entries[0].Term)
 	default:
 		l.logger.Infof("truncate the unstable entries before index %d", entriesFirstIndex)
 		end := min(entriesFirstIndex-currentFirstIndex, uint64(len(l.entries)))
 		l.entries = l.entries[:end]
 		l.entries = append(l.entries, entries...)
-		l.persist(0, entriesFirstIndex-1)
+		l.stableTo(entriesFirstIndex-1, entries[0].Term)
 	}
 }
 
@@ -329,7 +329,42 @@ func (l *RaftLog) zeroTermOnErrCompacted(t uint64, err error) uint64 {
 	return 0
 }
 
-func (l *RaftLog) persist(lo, hi uint64) {
+func (l *RaftLog) stableTo(index, term uint64) {
 	// TODO:
-	l.stabled = hi
+	l.stabled = index
+}
+
+// maybeNextEntries returns the entries
+func (l *RaftLog) maybeNextEntries() []pb.Entry {
+	entries, err := l.maybeEntries(max(l.applied+1, l.FirstIndex()), l.committed)
+	if err != nil {
+		entries = []pb.Entry{}
+	}
+	return entries
+}
+
+func (l *RaftLog) maybeUnstable() []pb.Entry {
+	entries, err := l.maybeEntries(l.stabled+1, l.LastIndex())
+	if err != nil {
+		entries = []pb.Entry{}
+	}
+	return entries
+}
+
+func (l *RaftLog) HasNext() bool {
+	return l.committed > l.applied && l.committed >= l.FirstIndex()
+}
+
+func (l *RaftLog) HasUnstable() bool {
+	return l.LastIndex() > l.stabled
+}
+
+func (l *RaftLog) appliedTo(applied uint64) {
+	if applied == 0 {
+		return
+	}
+	if l.committed < applied || applied < l.applied {
+		l.logger.Panicf("appliedTo: out of range: [prevApplied(%d), committed](%d)", l.applied, l.committed)
+	}
+	l.applied = applied
 }
